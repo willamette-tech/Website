@@ -43,5 +43,6 @@ next-env.d.ts
 .idea/
 
 helm/argocd-application.yaml
-helm/tech-club/charts/
-helm/tech-club/Chart.lock
+helm/argocd-application-oracle.yaml
+helm/cssa/charts/
+helm/cssa/Chart.lock
