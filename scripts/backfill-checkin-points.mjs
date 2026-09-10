@@ -8,7 +8,14 @@
 //
 // Against the live deployment:
 //   kubectl exec -n cssa deploy/cssa -- node scripts/backfill-checkin-points.mjs
-import "dotenv/config"
+// Local runs read DATABASE_URL from .env; in the container it is already in the
+// environment and dotenv isn't part of the standalone bundle.
+try {
+  await import("dotenv/config")
+} catch {
+  // no dotenv available — rely on the ambient environment
+}
+
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"

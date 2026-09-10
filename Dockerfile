@@ -52,6 +52,13 @@ COPY --from=prisma /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=prisma /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma/
 
+# One-off maintenance scripts (e.g. the Member Points backfill), so they can be
+# run with `kubectl exec` against the live deployment. See helm/README.md.
+# points-config.ts comes along because the backfill reads the award values out
+# of it rather than hardcoding a second copy of them.
+COPY scripts ./scripts/
+COPY lib/points-config.ts ./lib/points-config.ts
+
 # Prisma CLI, pinned to the client version, so the migration init container
 # (see helm deployment.yaml) can run `prisma db push` on pod start without
 # fetching it from the network every time.
