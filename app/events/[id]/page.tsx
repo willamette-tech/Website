@@ -11,6 +11,7 @@ import { EventFormManager } from "@/components/event-form-manager"
 import { EventPollResults } from "@/components/event-poll-results"
 import { AttendeesList } from "@/components/attendees-list"
 import { theme } from "@/lib/theme"
+import { POINTS_RSVP_BONUS } from "@/lib/points-config"
 
 export default async function EventPage({
   params,
@@ -155,12 +156,19 @@ export default async function EventPage({
                   initialRsvpCount={rsvpCount}
                   initialHasRsvped={!!userRegistration?.rsvpedAt}
                   initialHasCheckedIn={!!userRegistration?.checkedInAt}
+                  bonusPoints={POINTS_RSVP_BONUS}
+                  initialRsvpOpen={now < event.startDate}
+                  initialBonusEarned={
+                    !!userRegistration?.rsvpedAt &&
+                    userRegistration.rsvpedAt < event.startDate
+                  }
                 />
 
                 {/* Check-in Form (only if code exists) */}
                 {event.checkInCode && (
                   <CheckinForm
                     eventId={event.id}
+                    eventTitle={event.title}
                     hasCheckedIn={!!userRegistration?.checkedInAt}
                     checkInForm={event.checkInForm}
                     formRequired={event.checkInFormRequired}

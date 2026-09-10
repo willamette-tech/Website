@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { ProfileForm } from "./profile-form"
 import { theme } from "@/lib/theme"
@@ -14,7 +15,15 @@ export default async function ProfilePage() {
     <div className="min-h-screen bg-theme-bg py-12">
       <div className={theme.container}>
         <div className="max-w-2xl mx-auto">
-          <h1 className={`text-3xl ${theme.text.heading} mb-8`}>Your Profile</h1>
+          <div className="flex items-end justify-between mb-8">
+            <h1 className={`text-3xl ${theme.text.heading}`}>Your Profile</h1>
+            <Link
+              href={`/members/${session.user.id}`}
+              className="text-sm text-accent hover:text-accent-hover font-medium transition-colors"
+            >
+              View public profile
+            </Link>
+          </div>
 
           <div className={`${theme.card.className} p-6 md:p-8`}>
             {/* Avatar and Basic Info */}

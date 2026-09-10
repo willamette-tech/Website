@@ -7,9 +7,12 @@ import { theme } from "@/lib/theme"
 import type { FormQuestionDef } from "@/lib/forms"
 import { FormRenderer, type RendererChange } from "./form-renderer"
 import { SignInLink } from "./sign-in-link"
+import { useToast } from "./toast"
+import { checkinToast } from "@/lib/checkin-toast"
 
 interface CheckinFormProps {
   eventId: string
+  eventTitle?: string
   hasCheckedIn?: boolean
   checkInForm?: {
     id: string
@@ -22,12 +25,14 @@ interface CheckinFormProps {
 
 export function CheckinForm({
   eventId,
+  eventTitle,
   hasCheckedIn = false,
   checkInForm = null,
   formRequired = true,
 }: CheckinFormProps) {
   const { status } = useSession()
   const router = useRouter()
+  const showToast = useToast()
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -101,6 +106,7 @@ export function CheckinForm({
         if (data.fieldErrors) setFieldErrors(data.fieldErrors)
       } else {
         setSuccess(true)
+        showToast(checkinToast(data, eventTitle))
         // Refresh server components so RSVP/attendance state reflects check-in.
         router.refresh()
       }

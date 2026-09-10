@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { theme } from "@/lib/theme"
 import { ContributionGraph } from "@/components/contribution-graph"
 import { FeaturedProjects } from "@/components/featured-projects"
-import { AttendanceLeaderboard } from "@/components/attendance-leaderboard"
-import { getAttendanceLeaderboard } from "@/lib/leaderboard"
+import { PointsLeaderboard } from "@/components/points-leaderboard"
+import { getPointsLeaderboard } from "@/lib/points"
 
 export default async function Home() {
   const recentPosts = await prisma.post.findMany({
@@ -29,7 +29,7 @@ export default async function Home() {
     take: 5,
   })
 
-  const leaderboardUsers = await getAttendanceLeaderboard(10)
+  const topMembers = await getPointsLeaderboard(10)
 
   return (
     <div className="min-h-screen bg-theme-bg">
@@ -140,14 +140,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Top Event Attendees */}
-      {leaderboardUsers.length > 0 && (
+      {/* Top Members by Points */}
+      {topMembers.length > 0 && (
         <section className={theme.section}>
           <div className={theme.container}>
             <div className="flex justify-between items-end mb-8">
               <div>
-                <h2 className={`text-3xl ${theme.text.heading}`}>Top Event Attendees</h2>
-                <p className={`mt-2 ${theme.text.muted}`}>Recognizing our most active members</p>
+                <h2 className={`text-3xl ${theme.text.heading}`}>Member Points</h2>
+                <p className={`mt-2 ${theme.text.muted}`}>Earned by attending events and contributing to the club</p>
               </div>
               <Link
                 href="/leaderboard"
@@ -160,7 +160,7 @@ export default async function Home() {
               </Link>
             </div>
             <div className={`${theme.card.className} p-6`}>
-              <AttendanceLeaderboard users={leaderboardUsers} compact />
+              <PointsLeaderboard members={topMembers} compact />
             </div>
           </div>
         </section>
@@ -267,29 +267,34 @@ export default async function Home() {
                     {post.description || post.content.substring(0, 150) + "..."}
                   </p>
                   <div className="mt-4 pt-4 border-t border-theme-border flex items-center gap-3">
-                    {post.author.image ? (
-                      <img
-                        src={post.author.image}
-                        alt={post.author.displayName || post.author.name || "User"}
-                        className="w-8 h-8 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-medium text-sm">
-                        {(post.author.displayName || post.author.name || post.author.email || "U")[0].toUpperCase()}
+                    <Link
+                      href={`/members/${post.author.id}`}
+                      className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                      {post.author.image ? (
+                        <img
+                          src={post.author.image}
+                          alt={post.author.displayName || post.author.name || "User"}
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-medium text-sm">
+                          {(post.author.displayName || post.author.name || post.author.email || "U")[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-theme-primary truncate">
+                          {post.author.displayName || post.author.name || post.author.email}
+                        </p>
+                        <p className="text-xs text-theme-muted">
+                          {new Date(post.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-theme-primary truncate">
-                        {post.author.displayName || post.author.name || post.author.email}
-                      </p>
-                      <p className="text-xs text-theme-muted">
-                        {new Date(post.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
+                    </Link>
                   </div>
                 </article>
               ))}

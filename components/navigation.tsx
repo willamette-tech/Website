@@ -70,6 +70,12 @@ export async function Navigation() {
                     >
                       Forms
                     </Link>
+                    <Link
+                      href="/admin/points"
+                      className="hidden sm:block px-3 py-2 text-sm font-medium text-accent hover:text-accent-hover hover:bg-theme-hover rounded-lg transition-colors"
+                    >
+                      Points
+                    </Link>
                   </>
                 )}
                 <div className="h-6 w-px bg-theme-border mx-2 hidden sm:block" />

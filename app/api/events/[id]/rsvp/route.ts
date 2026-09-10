@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { POINTS_RSVP_BONUS } from "@/lib/points-config"
+
+/**
+ * RSVPs close when the event begins: an RSVP that lands after the doors open
+ * can't inform anything we'd have planned with it. This is the same instant
+ * the bonus window closes, so one predicate drives both.
+ *
+ * Cancelling is deliberately *not* time-gated — someone who can no longer make
+ * it should be able to drop off the headcount at any point (up until they
+ * check in, which the DELETE handler still blocks).
+ */
+function rsvpOpen(startDate: Date) {
+  return new Date() < startDate
+}
+
+function bonusEarned(rsvpedAt: Date | null | undefined, startDate: Date) {
+  return !!rsvpedAt && rsvpedAt < startDate
+}
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +30,7 @@ export async function GET(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, startDate: true },
     })
 
     if (!event) {
@@ -35,6 +53,9 @@ export async function GET(
       rsvpCount,
       hasRsvped: !!userRsvp?.rsvpedAt,
       hasCheckedIn: !!userRsvp?.checkedInAt,
+      rsvpBonusPoints: POINTS_RSVP_BONUS,
+      rsvpOpen: rsvpOpen(event.startDate),
+      rsvpBonusEarned: bonusEarned(userRsvp?.rsvpedAt, event.startDate),
     })
   } catch (error) {
     console.error("Get RSVP status error:", error)
@@ -66,6 +87,13 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 })
     }
 
+    if (!rsvpOpen(event.startDate)) {
+      return NextResponse.json(
+        { error: "RSVPs closed when the event started" },
+        { status: 400 }
+      )
+    }
+
     const registration = await prisma.eventRegistration.upsert({
       where: { eventId_userId: { eventId: id, userId: session.user.id } },
       update: { rsvpedAt: new Date() },
@@ -84,6 +112,9 @@ export async function POST(
       success: true,
       rsvpCount,
       hasRsvped: true,
+      rsvpBonusPoints: POINTS_RSVP_BONUS,
+      rsvpOpen: rsvpOpen(event.startDate),
+      rsvpBonusEarned: bonusEarned(registration.rsvpedAt, event.startDate),
     })
   } catch (error) {
     console.error("RSVP error:", error)
@@ -105,6 +136,15 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+      select: { id: true, startDate: true },
+    })
+
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 })
+    }
 
     const registration = await prisma.eventRegistration.findUnique({
       where: { eventId_userId: { eventId: id, userId: session.user.id } },
@@ -132,6 +172,9 @@ export async function DELETE(
       success: true,
       rsvpCount,
       hasRsvped: false,
+      rsvpBonusPoints: POINTS_RSVP_BONUS,
+      rsvpOpen: rsvpOpen(event.startDate),
+      rsvpBonusEarned: false,
     })
   } catch (error) {
     console.error("Cancel RSVP error:", error)

@@ -1,14 +1,15 @@
 import { theme } from "@/lib/theme"
-import { getAttendanceLeaderboard } from "@/lib/leaderboard"
-import { AttendanceLeaderboard } from "@/components/attendance-leaderboard"
+import { getPointsLeaderboard } from "@/lib/points"
+import { PointsLeaderboard } from "@/components/points-leaderboard"
 
 export const metadata = {
-  title: "Attendance Leaderboard | Willamette Technology Club",
-  description: "See who attends the most Willamette Technology Club events",
+  title: "Member Points | Willamette Technology Club",
+  description:
+    "Points earned by Willamette Technology Club members through event attendance and contributions",
 }
 
 export default async function LeaderboardPage() {
-  const rankedUsers = await getAttendanceLeaderboard(100)
+  const rankedMembers = await getPointsLeaderboard(100)
 
   return (
     <div className="min-h-screen bg-theme-bg">
@@ -16,16 +17,16 @@ export default async function LeaderboardPage() {
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
             <h1 className={`text-3xl md:text-4xl ${theme.text.heading}`}>
-              Attendance Leaderboard
+              Member Points
             </h1>
             <p className={`mt-2 ${theme.text.muted}`}>
-              Recognizing our most active event attendees
+              Earned by attending events and contributing to the club
             </p>
           </div>
 
-          {rankedUsers.length > 0 ? (
+          {rankedMembers.length > 0 ? (
             <div className={`${theme.card.className} p-6`}>
-              <AttendanceLeaderboard users={rankedUsers} />
+              <PointsLeaderboard members={rankedMembers} />
             </div>
           ) : (
             <div className={`${theme.card.className} p-12 text-center`}>
@@ -45,7 +46,7 @@ export default async function LeaderboardPage() {
                 </svg>
               </div>
               <p className="text-theme-muted">
-                No attendance data yet. Check in at events to join the leaderboard!
+                No points awarded yet. Check in at an event to get on the board!
               </p>
             </div>
           )}

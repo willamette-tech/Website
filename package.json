@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "backfill:points": "node scripts/backfill-checkin-points.mjs",
     "postinstall": "node scripts/sync-pptx-renderer.mjs"
   },
   "dependencies": {

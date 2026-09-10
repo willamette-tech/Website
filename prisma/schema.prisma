@@ -62,6 +62,8 @@ model User {
   eventRegistrations EventRegistration[]
   forms              Form[]
   formResponses      FormResponse[]
+  pointAwards        PointAward[]        @relation("PointAwardsReceived")
+  pointAwardsGranted PointAward[]        @relation("PointAwardsGranted")
 }
 
 model VerificationToken {
@@ -116,6 +118,7 @@ model Event {
   registrations EventRegistration[]
   checkInForm   Form?               @relation(fields: [checkInFormId], references: [id], onDelete: SetNull)
   formResponses FormResponse[]
+  pointAwards   PointAward[]
 }
 
 model Project {
@@ -224,4 +227,40 @@ model EventRegistration {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+}
+
+// Where a point award came from. Check-in and RSVP-bonus awards are granted
+// automatically by the event check-in flow; manual awards are granted by an
+// admin. The source is part of the unique constraint below, so a member can
+// hold one of each per event.
+enum PointSource {
+  EVENT_CHECKIN
+  RSVP_BONUS
+  MANUAL
+}
+
+// Append-only points ledger. A member's total is the sum of their awards, which
+// keeps every total explainable ("why do I have 400 points?") and makes a bad
+// award a row to delete rather than a counter to guess at.
+model PointAward {
+  id          String      @id @default(cuid())
+  userId      String
+  points      Int
+  reason      String      @db.Text
+  source      PointSource @default(MANUAL)
+  eventId     String?
+  awardedById String?
+  createdAt   DateTime    @default(now())
+
+  user      User   @relation("PointAwardsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  awardedBy User?  @relation("PointAwardsGranted", fields: [awardedById], references: [id], onDelete: SetNull)
+  event     Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  // At most one check-in award per member per event, so re-checking in cannot
+  // double-pay. Postgres treats NULLs as distinct, so manual awards (eventId
+  // null) are unconstrained by this.
+  @@unique([userId, source, eventId])
+  @@index([userId])
+  @@index([eventId])
+  @@index([createdAt])
 }

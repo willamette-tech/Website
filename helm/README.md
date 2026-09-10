@@ -154,6 +154,18 @@ To run a migration manually against the live DB:
 kubectl exec -n cssa deploy/cssa -- sh -c 'cd /app && prisma db push --accept-data-loss --skip-generate'
 ```
 
+### Member Points backfill (one-off)
+
+`db push` creates the `PointAward` table but cannot populate it. Run the
+backfill **once**, after the first rollout that ships the points schema, to
+grant attendance points for check-ins that predate the system:
+
+```bash
+kubectl exec -n cssa deploy/cssa -- node scripts/backfill-checkin-points.mjs
+```
+
+It is idempotent, so a repeat run only fills gaps.
+
 ## Monitoring
 
 The application exposes a health endpoint at `/api/health` which returns:

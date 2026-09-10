@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAttendanceLeaderboard } from "@/lib/leaderboard"
+import { getPointsLeaderboard } from "@/lib/points"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get("limit") || "50", 10)
 
-    const leaderboard = await getAttendanceLeaderboard(
+    const leaderboard = await getPointsLeaderboard(
       Number.isFinite(limit) && limit > 0 ? limit : 50
     )
 

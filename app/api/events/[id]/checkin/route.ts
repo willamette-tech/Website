@@ -6,6 +6,7 @@ import {
   type QuestionForValidation,
   type ValidatedAnswer,
 } from "@/lib/forms"
+import { grantEventPoints, type GrantedAward } from "@/lib/points"
 
 export async function POST(
   request: NextRequest,
@@ -30,6 +31,7 @@ export async function POST(
         id: true,
         checkInCode: true,
         title: true,
+        startDate: true,
         checkInFormId: true,
         checkInFormRequired: true,
         checkInForm: {
@@ -94,6 +96,8 @@ export async function POST(
       }
     }
 
+    let granted: GrantedAward[] = []
+
     const registration = await prisma.$transaction(async (tx) => {
       const reg = await tx.eventRegistration.upsert({
         where: { eventId_userId: { eventId: id, userId: session.user.id } },
@@ -103,6 +107,17 @@ export async function POST(
           userId: session.user.id,
           checkedInAt: new Date(),
         },
+      })
+
+      // Attendance points, plus the RSVP bonus when they signed up ahead of
+      // time. Idempotent, so a repeat check-in refreshes the timestamp above
+      // without paying out again. `reg.rsvpedAt` survives the upsert, which
+      // only touches `checkedInAt`.
+      granted = await grantEventPoints(tx, {
+        userId: session.user.id,
+        eventId: id,
+        event: { title: event.title, startDate: event.startDate },
+        rsvpedAt: reg.rsvpedAt,
       })
 
       if (form && validAnswers) {
@@ -137,6 +152,11 @@ export async function POST(
     return NextResponse.json({
       success: true,
       checkedInAt: registration.checkedInAt,
+      pointsAwarded: granted.reduce((sum, award) => sum + award.points, 0),
+      awards: granted.map((award) => ({
+        points: award.points,
+        source: award.source,
+      })),
     })
   } catch (error) {
     console.error("Check-in error:", error)
