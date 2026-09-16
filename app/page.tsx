@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { theme } from "@/lib/theme"
+import { upcomingWhere } from "@/lib/events"
 import { ContributionGraph } from "@/components/contribution-graph"
 import { FeaturedProjects } from "@/components/featured-projects"
 import { PointsLeaderboard } from "@/components/points-leaderboard"
@@ -15,10 +16,7 @@ export default async function Home() {
   })
 
   const upcomingEvents = await prisma.event.findMany({
-    where: {
-      published: true,
-      startDate: { gte: new Date() },
-    },
+    where: { published: true, ...upcomingWhere() },
     orderBy: { startDate: "asc" },
     take: 3,
   })

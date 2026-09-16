@@ -2,6 +2,7 @@ import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { theme } from "@/lib/theme"
+import { isPast, isUpcoming } from "@/lib/events"
 
 export default async function CalendarPage() {
   const session = await auth()
@@ -12,12 +13,9 @@ export default async function CalendarPage() {
     include: { author: true },
   })
 
-  const upcomingEvents = events.filter(
-    (event) => new Date(event.startDate) >= new Date()
-  )
-  const pastEvents = events.filter(
-    (event) => new Date(event.startDate) < new Date()
-  )
+  const now = new Date()
+  const upcomingEvents = events.filter((event) => isUpcoming(event, now))
+  const pastEvents = events.filter((event) => isPast(event, now))
 
   return (
     <div className="min-h-screen bg-theme-bg">

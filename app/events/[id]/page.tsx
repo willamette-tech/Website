@@ -12,6 +12,7 @@ import { EventPollResults } from "@/components/event-poll-results"
 import { AttendeesList } from "@/components/attendees-list"
 import { theme } from "@/lib/theme"
 import { POINTS_RSVP_BONUS } from "@/lib/points-config"
+import { isPast } from "@/lib/events"
 
 export default async function EventPage({
   params,
@@ -54,8 +55,7 @@ export default async function EventPage({
   const canManageEvent = isAuthor || isAdmin
 
   const now = new Date()
-  const eventEnd = event.endDate || event.startDate
-  const isPastEvent = eventEnd < now
+  const isPastEvent = isPast(event, now)
 
   const rsvpCount = await prisma.eventRegistration.count({
     where: { eventId: id, rsvpedAt: { not: null } },
