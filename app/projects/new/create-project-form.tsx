@@ -7,7 +7,13 @@ import type { ContentType } from "@prisma/client"
 import { readFileAsBase64, formatFileSize } from "@/lib/file-client"
 import { MAX_PPTX_FILE_BYTES } from "@/lib/pptx"
 
-export function CreateProjectForm({ userId }: { userId: string }) {
+export function CreateProjectForm({
+  userId,
+  isAdmin,
+}: {
+  userId: string
+  isAdmin: boolean
+}) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -347,7 +353,14 @@ export function CreateProjectForm({ userId }: { userId: string }) {
         />
       )}
 
-      <Checkbox id="featured" name="featured" label="Featured project" />
+      {isAdmin && (
+        <div>
+          <Checkbox id="featured" name="featured" label="Featured project" />
+          <p className="mt-1.5 text-sm text-theme-muted">
+            Featured projects appear on the home page
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <Button type="submit" isLoading={isLoading} className="flex-1">

@@ -21,7 +21,13 @@ interface Project {
   featured: boolean
 }
 
-export function EditProjectForm({ project }: { project: Project }) {
+export function EditProjectForm({
+  project,
+  isAdmin,
+}: {
+  project: Project
+  isAdmin: boolean
+}) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -417,12 +423,19 @@ export function EditProjectForm({ project }: { project: Project }) {
         />
       )}
 
-      <Checkbox
-        id="featured"
-        name="featured"
-        label="Featured project"
-        defaultChecked={project.featured}
-      />
+      {isAdmin && (
+        <div>
+          <Checkbox
+            id="featured"
+            name="featured"
+            label="Featured project"
+            defaultChecked={project.featured}
+          />
+          <p className="mt-1.5 text-sm text-theme-muted">
+            Featured projects appear on the home page
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <Button type="submit" isLoading={isLoading} className="flex-1">

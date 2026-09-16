@@ -29,14 +29,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user has permission to create projects (admin only)
-    if (!session.user.isAdmin) {
-      return NextResponse.json(
-        { error: "Only administrators can create projects" },
-        { status: 403 }
-      )
-    }
-
     const {
       title,
       description,
@@ -66,6 +58,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const isAdmin = session.user.isAdmin ?? false
+
     const project = await prisma.project.create({
       data: {
         title,
@@ -76,7 +70,7 @@ export async function POST(request: NextRequest) {
         githubUrl: githubUrl || null,
         demoUrl: demoUrl || null,
         technologies: technologies || [],
-        featured: featured || false,
+        featured: isAdmin ? featured || false : false,
         published: true,
         authorId,
       },

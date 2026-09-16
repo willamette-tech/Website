@@ -24,7 +24,7 @@ export default async function ProjectsPage() {
               Explore projects built by our community members
             </p>
           </div>
-          {session?.user?.isAdmin && (
+          {session?.user && (
             <Link href="/projects/new" className={theme.button.primary}>
               New Project
             </Link>

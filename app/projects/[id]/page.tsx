@@ -26,7 +26,7 @@ export default async function ProjectPage({
 
   const isAuthor = session?.user?.id === project.authorId
   const isAdmin = session?.user?.isAdmin ?? false
-  const canDelete = isAuthor || isAdmin
+  const canManageProject = isAuthor || isAdmin
 
   return (
     <div className="min-h-screen bg-theme-bg">
@@ -50,16 +50,14 @@ export default async function ProjectPage({
                 <h1 className={`text-3xl md:text-4xl ${theme.text.heading} flex-1`}>
                   {project.title}
                 </h1>
-                {canDelete && (
+                {canManageProject && (
                   <div className="flex gap-2 ml-4">
-                    {isAuthor && (
-                      <Link
-                        href={`/projects/${project.id}/edit`}
-                        className={theme.button.secondary}
-                      >
-                        Edit
-                      </Link>
-                    )}
+                    <Link
+                      href={`/projects/${project.id}/edit`}
+                      className={theme.button.secondary}
+                    >
+                      Edit
+                    </Link>
                     <DeleteButton id={project.id} type="project" redirectTo="/projects" />
                   </div>
                 )}

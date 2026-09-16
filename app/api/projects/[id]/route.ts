@@ -61,7 +61,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
-    if (existingProject.authorId !== session.user.id) {
+    const isAdmin = session.user.isAdmin ?? false
+
+    if (existingProject.authorId !== session.user.id && !isAdmin) {
       return NextResponse.json(
         { error: "You can only edit your own projects" },
         { status: 403 }
@@ -86,7 +88,9 @@ export async function PATCH(
         githubUrl: githubUrl || null,
         demoUrl: demoUrl || null,
         technologies: technologies || [],
-        featured: featured || false,
+        // Non-admins have no featured control, so their submissions carry no
+        // value for it — keep whatever an admin set instead of clearing it.
+        featured: isAdmin ? featured || false : existingProject.featured,
       },
     })
 

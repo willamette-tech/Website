@@ -25,7 +25,9 @@ export default async function EditProjectPage({
     notFound()
   }
 
-  if (project.authorId !== session.user.id) {
+  const isAdmin = session.user.isAdmin ?? false
+
+  if (project.authorId !== session.user.id && !isAdmin) {
     redirect(`/projects/${id}`)
   }
 
@@ -34,7 +36,7 @@ export default async function EditProjectPage({
       <div className={`${theme.container} ${theme.section}`}>
         <div className={`${theme.card.className} max-w-3xl mx-auto p-8`}>
           <h1 className={`text-3xl ${theme.text.heading} mb-6`}>Edit Project</h1>
-          <EditProjectForm project={project} />
+          <EditProjectForm project={project} isAdmin={isAdmin} />
         </div>
       </div>
     </div>
