@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "tech-club.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "tech-club.selectorLabels" . | nindent 6 }}
@@ -47,12 +45,12 @@ spec:
               echo "PostgreSQL is ready!"
         {{- end }}
         {{- if .Values.migrations.enabled }}
-        # Sync the DB schema to the deployed image on every pod start. This is
-        # what makes "git push -> image builds -> kubectl rollout restart" apply
-        # schema changes without a separate step. Runs before the app container,
-        # so a failed migration blocks the rollout instead of serving a broken app.
+        # Sync the DB schema to the deployed image on every pod start, so a new
+        # image tag synced by Argo CD applies schema changes without a separate
+        # step. Runs before the app container, so a failed migration blocks the
+        # rollout instead of serving a broken app.
         - name: db-migrate
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: {{ include "tech-club.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -77,16 +75,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "tech-club.fullname" . }}-config
-            - secretRef:
-                name: {{ include "tech-club.secretName" . }}
-                optional: true
           {{- if .Values.postgresql.enabled }}
           env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tech-club.fullname" . }}-db-url
-                  key: DATABASE_URL
+            {{- include "tech-club.dbEnv" . | nindent 12 }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -96,7 +87,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: {{ include "tech-club.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -105,15 +96,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "tech-club.fullname" . }}-config
+            # Hand-made; the pod stays in CreateContainerConfigError until it
+            # exists. See helm/README.md.
             - secretRef:
                 name: {{ include "tech-club.secretName" . }}
           {{- if .Values.postgresql.enabled }}
           env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tech-club.fullname" . }}-db-url
-                  key: DATABASE_URL
+            {{- include "tech-club.dbEnv" . | nindent 12 }}
           {{- end }}
           {{- with .Values.healthCheck.livenessProbe }}
           livenessProbe:

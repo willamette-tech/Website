@@ -5,6 +5,12 @@ metadata:
   labels:
     {{- include "tech-club.labels" . | nindent 4 }}
 data:
-  {{- range $key, $value := .Values.env }}
+  {{- $env := .Values.env | default dict }}
+  {{- if not (hasKey $env "NEXTAUTH_URL") }}
+  # Derived from ingress.host: the cluster chart overrides the host but passes
+  # no env, and NextAuth needs the public origin to set secure cookies.
+  NEXTAUTH_URL: {{ include "tech-club.appUrl" . | quote }}
+  {{- end }}
+  {{- range $key, $value := $env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

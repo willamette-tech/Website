@@ -1,43 +1,27 @@
-Thank you for installing {{ .Chart.Name }}!
+{{ .Chart.Name }} is deployed as release "{{ .Release.Name }}" in namespace {{ .Release.Namespace }}.
 
-Your release is named: {{ .Release.Name }}
-
-To get the application URL:
-{{- if .Values.ingress.enabled }}
-{{- range $host := .Values.ingress.hosts }}
-  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
-{{- end }}
-{{- else if contains "NodePort" .Values.service.type }}
-  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "tech-club.fullname" . }})
-  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
-  echo http://$NODE_IP:$NODE_PORT
-{{- else if contains "LoadBalancer" .Values.service.type }}
-  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
-        You can watch the status by running:
-        kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "tech-club.fullname" . }}
-  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "tech-club.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
-  echo http://$SERVICE_IP:{{ .Values.service.port }}
-{{- else if contains "ClusterIP" .Values.service.type }}
-  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "tech-club.fullname" . }} 8080:{{ .Values.service.port }}
-  Then visit: http://localhost:8080
+Site:  {{ include "tech-club.appUrl" . }}
+Image: {{ include "tech-club.image" . }}
+{{- if .Values.postgresql.enabled }}
+DB:    {{ include "tech-club.postgresqlHost" . }}:5432/{{ .Values.postgresql.auth.database }} (bundled subchart)
 {{- end }}
 
-{{- if not .Values.secrets.create }}
-{{- if not .Values.externalSecrets.enabled }}
+{{- $secret := include "tech-club.secretName" . }}
+{{- if not (lookup "v1" "Secret" .Release.Namespace $secret) }}
 
-WARNING: No secrets are configured!
-You must create a secret named "{{ include "tech-club.secretName" . }}" with the following keys:
-  - DATABASE_URL
-  - NEXTAUTH_SECRET
-  - GITHUB_CLIENT_ID
-  - GITHUB_CLIENT_SECRET
+WARNING: Secret "{{ $secret }}" does not exist in namespace {{ .Release.Namespace }}.
+The app container cannot start without it (CreateContainerConfigError). This
+chart deliberately does not render it: Argo CD is configured to ignore Secret
+data, so a rendered Secret could never be updated after the first sync.
 
-Example:
-  kubectl create secret generic {{ include "tech-club.secretName" . }} \
+Create it once, by hand:
+
+  kubectl create secret generic {{ $secret }} \
     --namespace {{ .Release.Namespace }} \
-    --from-literal=DATABASE_URL='postgresql://...' \
-    --from-literal=NEXTAUTH_SECRET='your-secret' \
-    --from-literal=GITHUB_CLIENT_ID='your-client-id' \
-    --from-literal=GITHUB_CLIENT_SECRET='your-client-secret'
-{{- end }}
+    --from-literal=NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
+    --from-literal=GITHUB_CLIENT_ID='your-github-client-id' \
+    --from-literal=GITHUB_CLIENT_SECRET='your-github-client-secret'
+
+DATABASE_URL is NOT part of this Secret — the pod builds it from the
+PostgreSQL subchart's own credentials.
 {{- end }}

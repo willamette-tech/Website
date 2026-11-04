@@ -1,12 +1,43 @@
-# Default values for tech-club
-# This is a YAML-formatted file.
+# Default values for tech-club.
+#
+# HOW THIS IS DEPLOYED
+# The wu-tech-cluster chart renders one Argo CD Application per entry in its
+# `applications:` list, and this chart is the `wu-tech-website` entry. That
+# umbrella hands this chart exactly three things, so everything here must work
+# from just those:
+#
+#   1. The release name = the app name (`wu-tech-website`). No fullnameOverride
+#      is passed, so resources are named "wu-tech-website-tech-club-*".
+#   2. `values:` -> ingress.host and global.security.allowInsecureImages.
+#   3. `parameters:` -> image.server.name, built from the `images:` alias
+#      (`server`) and rewritten by argocd-image-updater. Hence image.server.*
+#      below; renaming that key breaks the Application's --set.
+#
+# Two properties of that Application's sync policy shape this chart:
+#
+#   ignoreDifferences: [{kind: Secret, jsonPointers: [/data, /stringData]}]
+#   syncOptions: [RespectIgnoreDifferences=true]
+#
+#   - Secret contents are WRITE-ONCE. Argo CD strips data/stringData from what
+#     it applies to an existing Secret, so a Secret rendered by this chart gets
+#     its contents on create and is never corrected again. This chart therefore
+#     renders no Secrets at all: DATABASE_URL is assembled inside the pod from
+#     the PostgreSQL subchart's own Secret, and the app's own credentials live
+#     in a hand-made Secret (see helm/README.md).
+#   - `prune` is NOT enabled. Dropping a template from this chart leaves the
+#     live object orphaned in the cluster; delete those by hand.
 
 replicaCount: 1
 
 image:
-  repository: ghcr.io/willamette-tech/website
+  # "server" is the alias from the cluster chart's `images:` list, which renders
+  # --set image.server.name=<repo>. argocd-image-updater writes the same path.
+  server:
+    name: ghcr.io/willamette-tech/website
+    tag: "latest"
+  # CI publishes linux/amd64 only (see .github/workflows/build.yaml), so every
+  # node running this must be amd64.
   pullPolicy: Always
-  tag: "latest"  # Use "latest" or a specific SHA/tag
 
 imagePullSecrets: []
 nameOverride: ""
@@ -41,19 +72,19 @@ service:
 ingress:
   enabled: true
   className: traefik
+  # The one value the cluster chart overrides, as a plain scalar:
+  #   values: {ingress: {host: wu-tech.club}}
+  # It also feeds NEXTAUTH_URL below, so it must be the public hostname.
+  host: techclub.example.com
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-  hosts:
-    - host: techclub.example.com
-      paths:
-        - path: /
-          pathType: Prefix
   tls:
-    - secretName: tech-club-tls
-      hosts:
-        - techclub.example.com
+    enabled: true
+    # Matches the existing cert-manager Certificate in the cssa namespace;
+    # renaming it makes cert-manager issue a fresh certificate.
+    secretName: tech-club-tls
 
 resources:
   limits:
@@ -63,50 +94,36 @@ resources:
     cpu: 100m
     memory: 256Mi
 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
-
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
 
-# Environment variables for the application
+# Non-secret environment variables, rendered into the ConfigMap verbatim.
 env:
   NODE_ENV: production
-  NEXTAUTH_URL: https://techclub.example.com
   # Server-side timezone used for date/time rendering (SSR). Pacific w/ DST.
   # Requires tzdata in the runtime image (see Dockerfile).
   TZ: America/Los_Angeles
+  # NEXTAUTH_URL is derived from ingress.host (https://<host>) when it is not
+  # set here. The cluster chart passes no env overrides, so leave it unset and
+  # let ingress.host drive it; setting it wins over the derived value.
+  # NEXTAUTH_URL: https://techclub.example.com
 
-# Secrets - these should be provided via sealed-secrets or external-secrets
-secrets:
-  # Set to true to create a Secret resource from values below
-  # For production, use external-secrets or sealed-secrets instead
-  create: false
-  # Values below are only used if secrets.create is true
-  databaseUrl: ""
-  nextauthSecret: ""
-  githubClientId: ""
-  githubClientSecret: ""
-
-# External secret configuration (for external-secrets operator)
-externalSecrets:
-  enabled: false
-  refreshInterval: 1h
-  secretStoreRef:
-    name: vault-backend
-    kind: ClusterSecretStore
+# Secret holding the app's own credentials: NEXTAUTH_SECRET, GITHUB_CLIENT_ID,
+# GITHUB_CLIENT_SECRET. Created by hand, because Argo CD freezes Secret data
+# (see the header). Defaults to <fullname>-secrets; the app will not start
+# until it exists. helm/README.md has the kubectl command.
+existingSecret: ""
 
 # PostgreSQL subchart configuration
 postgresql:
-  enabled: true  # Set to true to deploy PostgreSQL alongside the app
+  enabled: true
   image:
+    # Bitnami moved versioned tags to bitnamilegacy; the subchart rejects a
+    # non-standard repository unless the Application also passes
+    # global.security.allowInsecureImages=true, which the cluster chart does.
     repository: "bitnamilegacy/postgresql"
     tag: "17"  # Use major version tag for stability
   auth:
@@ -116,6 +133,8 @@ postgresql:
     # so renaming here does NOT rename them in an existing database and will
     # break auth for every new pod. Change only alongside a real DB migration.
     username: cssa
+    # Goes into DATABASE_URL as a URL userinfo field, so keep it to characters
+    # that need no percent-encoding (alphanumerics, '-', '_', '.', '~').
     password: "changeme-techclub-password"
     database: cssa
   primary:
@@ -136,14 +155,10 @@ postgresql:
 # Database migrations
 migrations:
   # Run `prisma db push` in an init container on every pod start, so the DB
-  # schema always matches the deployed image. This makes
-  # "git push -> image builds -> kubectl rollout restart" apply schema changes
-  # with no extra step. A failed sync blocks the rollout (pod stays in Init).
+  # schema always matches the deployed image. Argo CD syncing a new image tag
+  # therefore applies schema changes with no extra step. A failed sync blocks
+  # the rollout (pod stays in Init).
   enabled: true
-  # Also run migrations as a Helm post-install/post-upgrade hook Job. Only fires
-  # on `helm upgrade`, never on a plain pod restart, so it's off by default and
-  # redundant with the init container above.
-  hookJob: false
 
 # Health check configuration
 healthCheck:
