@@ -40,7 +40,7 @@ spec:
             - sh
             - -c
             - |
-              until nc -z {{ include "tech-club.fullname" . }}-postgresql 5432; do
+              until nc -z {{ include "tech-club.postgresqlHost" . }} 5432; do
                 echo "Waiting for PostgreSQL..."
                 sleep 2
               done
