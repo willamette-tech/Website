@@ -107,6 +107,7 @@ externalSecrets:
 postgresql:
   enabled: true  # Set to true to deploy PostgreSQL alongside the app
   image:
+    repository: "bitnamilegacy/postgresql"
     tag: "17"  # Use major version tag for stability
   auth:
     postgresPassword: "changeme-postgres-admin"
