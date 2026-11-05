@@ -141,6 +141,7 @@ postgresql:
     persistence:
       enabled: true
       size: 10Gi
+      storageClass: truenas-iscsi
     resources:
       limits:
         cpu: 500m
